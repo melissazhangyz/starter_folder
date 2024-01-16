@@ -1,0 +1,156 @@
+---
+title: "quiz2"
+format: html
+---
+
+```{r}
+###Preamble###
+  #Consider the following scenario: 
+  #In a certain country there are only ever four parties that could win a seat 
+  #in parliament. Whichever candidate has a plurality wins the seat. And the 
+  #parliament made up of 175 seats. An analyst is interested in the number of 
+  #votes for each party by seat. Please sketch what that dataset could look 
+  #like, and then sketch a graph that you could build to show all observations.
+```
+
+```{r}
+###Setup###
+library("tidyverse")
+library("ggplot2")
+library("dplyr")
+library("janitor")
+```
+
+```{r}
+###Simulation###
+set.seed(19)
+
+simulated_data <-
+  tibble(
+    "seat" = rep(1:175, each = 4),
+    "party" = rep(
+      x = 1:4, 
+      times = 175, 
+      ),
+    "votes" = sample(
+      x = 1:1000,
+      size = 175*4)
+    )
+simulated_data$party <- as.character(simulated_data$party)
+head(simulated_data)
+```
+
+```{r}
+simulated_data$party |>
+  unique() == c("1", "2", "3", "4")
+
+simulated_data$seat |> min() == 1
+simulated_data$seat |> max() == 175
+```
+
+```{r}
+#### Read in the data ####
+raw_elections_data <-
+  read_csv(
+    file = 
+      "https://results.aec.gov.au/27966/Website/Downloads/HouseCandidatesDownload-27966.csv",
+    show_col_types = FALSE,
+    skip = 1
+  )
+
+# Save data
+write_csv(
+  x = raw_elections_data,
+  file = "australian_voting.csv"
+)
+```
+
+```{r}
+#### Basic cleaning ####
+raw_elections_data <-
+  read_csv(
+    file = "australian_voting.csv",
+    show_col_types = FALSE
+  )
+
+# Make the names easier to type
+cleaned_elections_data <-
+  clean_names(raw_elections_data)
+
+# View data
+view(cleaned_elections_data)
+```
+
+```{r}
+election_data <-
+  cleaned_elections_data |>
+  select(
+    division_id,
+    party_nm,
+    elected)
+
+head(election_data)
+```
+
+```{r}
+###Pick selected
+election_data <-
+  election_data |>
+  group_by(division_id)|>
+  filter(elected == "Y")|>
+  ungroup()
+
+head(election_data)
+```
+
+```{r}
+###Clean Party Name
+election_data <-
+  election_data |>
+  mutate(
+    party_nm = 
+      case_match(
+        party_nm,
+        "Labor" ~ "Labor",
+        "Australian Labor Party" ~ "Labor",
+        "Liberal National Party of Queensland" ~ "Liberal",
+        "Liberal" ~ "Liberal",
+        "The Greens" ~ "Greens",
+        "Queensland Greens" ~ "Greens",
+        "The Nationals" ~ "Nationals",
+        "Independent" ~ "Other",
+        "A.L.P." ~ "Labor",
+        "Katter's Australian Party (KAP)" ~ "Other",
+        "Centre Alliance" ~ "Other",
+      )
+  )
+
+head(election_data)
+```
+
+```{r}
+final_data <-
+election_data|>
+  count(party_nm)
+
+head(final_data)
+
+final_data <-
+final_data|>
+  rename(
+    party = party_nm,
+    number = n
+  )
+
+head(final_data)
+```
+
+```{r}
+###Draw Bar Chart
+final_data |>
+  ggplot(
+    mapping = aes (x = party, y = number)
+  ) + 
+  geom_bar(stat = "identity")
+```
+
